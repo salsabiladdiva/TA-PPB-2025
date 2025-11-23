@@ -1,0 +1,23 @@
+/* Styling global App */
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #000;
+  font-family: 'Inter', sans-serif;
+  color: white;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:active {
+  transform: scale(0.95);
+}
