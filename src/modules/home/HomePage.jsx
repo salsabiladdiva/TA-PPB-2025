@@ -11,11 +11,10 @@ export default function HomePage() {
         fontFamily: "'Poppins', sans-serif"
       }}
     >
+      <Navbar />
 
-      <Navbar />  {/* ← pakai komponen navbar */}
-
-      {/* --- HERO SECTION --- */}
-      <div style={{ marginTop: "0px", padding: "120px 20px" }}>
+      {/* HERO SECTION */}
+      <div style={{ marginTop: "60px", padding: "90px 20px" }}>
         <h1 style={heroLine}>WELCOME TO THE FUTURE OF</h1>
         <h1 style={heroLine}>FLIGHT BOOKING</h1>
         <h1 style={heroLine}>FAST • SIMPLE • RELIABLE</h1>
@@ -24,7 +23,10 @@ export default function HomePage() {
           Experience seamless traveling with CabinIn Airlines ✈️
         </p>
 
-        <div style={{ marginTop: 40 }}>
+        {/* BUTTONS WRAPPER */}
+        <div style={{ marginTop: 40, display: "flex", justifyContent: "center", gap: "20px" }}>
+
+          {/* BOOK FLIGHT BUTTON */}
           <a
             href="/booking"
             style={{
@@ -41,6 +43,26 @@ export default function HomePage() {
           >
             Book Your Flight
           </a>
+
+          {/* LOGIN BUTTON — NEW */}
+          <a
+            href="/login"
+            style={{
+              display: "inline-block",
+              padding: "14px 32px",
+              background: "rgba(255,255,255,0.2)",
+              color: "white",
+              borderRadius: 12,
+              fontSize: 20,
+              fontWeight: 700,
+              border: "2px solid white",
+              backdropFilter: "blur(5px)",
+              textDecoration: "none"
+            }}
+          >
+            Login
+          </a>
+
         </div>
       </div>
     </div>

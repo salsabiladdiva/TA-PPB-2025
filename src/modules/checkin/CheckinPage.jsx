@@ -1,31 +1,64 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import Navbar from "../../components/Navbar"; // ← pakai file navbar
+
+const API_BASE_URL = "http://192.168.1.43:4000"; // URL ke backend Express Anda
 
 export default function CheckInPage() {
   const [ticketCode, setTicketCode] = useState("");
+  const [loading, setLoading] = useState(false); // State untuk loading
   const navigate = useNavigate();
+  const location = useLocation(); // Hook untuk mengakses state navigasi
 
-  const handleCheckIn = () => {
+  // Efek untuk mengisi otomatis Ticket Code dari halaman Payment Success
+  useEffect(() => {
+    // Memeriksa apakah ada state 'ticket' yang dikirim dari halaman sebelumnya
+    if (location.state && location.state.ticket) {
+      setTicketCode(location.state.ticket);
+    }
+  }, [location.state]);
+
+  const handleCheckIn = async () => {
     if (!ticketCode.trim()) {
       alert("Please enter your ticket code.");
       return;
     }
+    
+    setLoading(true);
 
-    // Redirect dengan data dummy
-    navigate("/boarding-pass", {
-      state: {
-        booking: { ticket_code: ticketCode },
-        flight: {
-          from_city: "Jakarta (CGK)",
-          to_city: "Bali (DPS)",
-          date: "2025-01-05",
-          time: "08:45",
-          gate: "A7"
-        },
-        seat: "12A"
-      }
-    });
+    try {
+        // PANGGIL API Backend untuk Check-In
+        const response = await fetch(`${API_BASE_URL}/api/checkins/${ticketCode.trim()}`);
+
+        if (response.status === 404) {
+            alert("Ticket code not found.");
+            return;
+        }
+
+        if (!response.ok) {
+            // Jika ada error dari server, ambil pesan errornya
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Failed to process check-in.");
+        }
+        
+        // Ambil data lengkap yang dikirim dari server.js: booking, flight, dan seat
+        const result = await response.json();
+
+        // Redirect ke BoardingPassPage dengan data NYATA dari API
+        navigate("/boarding-pass", {
+            state: {
+                booking: result.booking,
+                flight: result.flight,
+                seat: result.seat
+            }
+        });
+
+    } catch (error) {
+        alert(`Check-In Failed: ${error.message}`);
+        console.error("Error during check-in:", error);
+    } finally {
+        setLoading(false);
+    }
   };
 
   return (
@@ -87,6 +120,7 @@ export default function CheckInPage() {
 
         <button
           onClick={handleCheckIn}
+          disabled={loading} // Disabled saat loading
           style={{
             width: "100%",
             padding: "16px",
@@ -100,7 +134,7 @@ export default function CheckInPage() {
             boxShadow: "0 4px 15px rgba(255,255,255,0.2)"
           }}
         >
-          Confirm Check-In
+          {loading ? "Processing..." : "Confirm Check-In"}
         </button>
       </div>
     </div>

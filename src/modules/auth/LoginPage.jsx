@@ -5,12 +5,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
 
   // Jika sudah login → ke profile
-  useEffect(() => {
-    const logged = localStorage.getItem("logged_in")
-    if (logged === "true") {
-      navigate("/profile")
-    }
-  }, [])
+
 
   const handleLogin = () => {
     localStorage.setItem("logged_in", "true")
