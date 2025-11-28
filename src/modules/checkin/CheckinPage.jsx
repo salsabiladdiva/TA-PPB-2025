@@ -1,18 +1,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import Navbar from "../../components/Navbar"; // ← pakai file navbar
+import Navbar from "../../components/Navbar"; 
 
-const API_BASE_URL = "http://192.168.1.43:4000"; // URL ke backend Express Anda
+// URL ke backend Express Anda (pastikan IP ini sudah benar)
+const API_BASE_URL = "http://localhost:4000"; 
 
 export default function CheckInPage() {
   const [ticketCode, setTicketCode] = useState("");
-  const [loading, setLoading] = useState(false); // State untuk loading
+  const [loading, setLoading] = useState(false); 
   const navigate = useNavigate();
-  const location = useLocation(); // Hook untuk mengakses state navigasi
+  const location = useLocation(); 
 
-  // Efek untuk mengisi otomatis Ticket Code dari halaman Payment Success
+  // Efek untuk mengisi otomatis Ticket Code
   useEffect(() => {
-    // Memeriksa apakah ada state 'ticket' yang dikirim dari halaman sebelumnya
     if (location.state && location.state.ticket) {
       setTicketCode(location.state.ticket);
     }
@@ -27,7 +27,7 @@ export default function CheckInPage() {
     setLoading(true);
 
     try {
-        // PANGGIL API Backend untuk Check-In
+        // PANGGIL API Backend untuk Check-In (Endpoint ini sudah menangani alokasi kursi dan penyimpanan DB)
         const response = await fetch(`${API_BASE_URL}/api/checkins/${ticketCode.trim()}`);
 
         if (response.status === 404) {
@@ -35,22 +35,24 @@ export default function CheckInPage() {
             return;
         }
 
+        // Jika ada error (bukan 404), cek tipe konten respons untuk menghindari error JSON
         if (!response.ok) {
-            // Jika ada error dari server, ambil pesan errornya
-            const errorData = await response.json();
-            throw new Error(errorData.error || "Failed to process check-in.");
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+                 const errorData = await response.json();
+                 throw new Error(errorData.error || "Failed to process check-in.");
+            } else {
+                 // Ini adalah penanganan jika server memberikan HTML/teks error
+                 throw new Error("Failed to process check-in (Server responded with non-JSON data).");
+            }
         }
         
-        // Ambil data lengkap yang dikirim dari server.js: booking, flight, dan seat
+        // Ambil data lengkap (booking, flight, dan seat yang baru dibuat/dialokasikan)
         const result = await response.json();
 
         // Redirect ke BoardingPassPage dengan data NYATA dari API
         navigate("/boarding-pass", {
-            state: {
-                booking: result.booking,
-                flight: result.flight,
-                seat: result.seat
-            }
+            state: result 
         });
 
     } catch (error) {

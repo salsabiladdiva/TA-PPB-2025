@@ -161,7 +161,7 @@ export default function ProfilePage() {
 
             <div>
               <p style={label}>Email</p>
-              <p style={value}>salsabila@example.com</p>
+              <p style={value}>demo@cabinair.com</p>
             </div>
           </div>
         </div>

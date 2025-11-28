@@ -29,6 +29,19 @@ app.use(cors()); // Izinkan CORS
 app.use(express.json()); // Parsing JSON body
 
 // ==========================================================
+// UTILITY: Fungsi untuk membuat kursi acak
+// ==========================================================
+function generateRandomSeat() {
+  const rows = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+  const columns = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const randomRow = rows[Math.floor(Math.random() * rows.length)];
+  const randomColumn = columns[Math.floor(Math.random() * columns.length)];
+  return `${randomRow}${randomColumn}`;
+}
+// ==========================================================
+
+
+// ==========================================================
 // ROUTES
 // ==========================================================
 
@@ -114,7 +127,7 @@ app.post("/api/bookings", async (req, res) => {
 });
 
 
-// 5. GET /api/checkins/:ticket_code - Proses Check-In (Mengganti logic DUMMY di CheckinPage.jsx)
+// 5. GET /api/checkins/:ticket_code - Proses Check-In (MEMAKSA DOUBLE ENTRY DENGAN SEAT UNIK)
 app.get("/api/checkins/:ticket_code", async (req, res) => {
   try {
     const { ticket_code } = req.params;
@@ -137,14 +150,20 @@ app.get("/api/checkins/:ticket_code", async (req, res) => {
       throw error;
     }
     
-    // Asumsi kursi: Ambil data checkin dari DB atau beri kursi default
-    const { data: checkinData } = await supabase
+    // **LOGIKA MODIFIKASI: SELALU BUAT RECORD CHECK-IN BARU DENGAN KURSI UNIK**
+    const newSeat = generateRandomSeat(); // Tetapkan kursi unik baru
+    
+    // Catat check-in baru ke tabel 'checkins' (ini akan menjadi double entry)
+    const { error: checkinError } = await supabase
         .from("checkins")
-        .select("seat")
-        .eq("booking_id", bookingData.id)
-        .maybeSingle(); // maybeSingle: mengembalikan null jika tidak ada data
+        .insert({
+            booking_id: bookingData.id,
+            seat: newSeat
+        }); 
+        
+    if (checkinError) throw checkinError;
 
-    const seat = checkinData?.seat || "12A"; 
+    const finalSeat = newSeat; // Kursi yang ditampilkan adalah kursi yang baru dibuat
     const gate = bookingData.flights.gate || "TBD"; 
 
     // Kirim data yang dibutuhkan frontend untuk BoardingPassPage
@@ -162,7 +181,7 @@ app.get("/api/checkins/:ticket_code", async (req, res) => {
         gate: gate,
         price: bookingData.flights.price
       },
-      seat: seat,
+      seat: finalSeat,
     });
   } catch (err) {
     console.error(err);
