@@ -45,7 +45,7 @@ export default function BookingPage() {
       <div
         style={{
           minHeight: "100vh",
-          background: "linear-gradient(135deg, #c44569)", // Sama dengan home
+          background: "#c44569", // Sama dengan home
           color: "white",
           padding: "0", // Reset padding
           paddingTop: "100px", // Ruang untuk fixed navbar
