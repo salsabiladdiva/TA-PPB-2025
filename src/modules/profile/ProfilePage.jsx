@@ -1,23 +1,87 @@
 import { useNavigate } from "react-router-dom"
-import { useEffect } from "react"
+import { useEffect, useState } from "react" 
 import Navbar from "../../components/Navbar"
+import { supabase } from "../../utils/supabaseClient"
 
 export default function ProfilePage() {
   const navigate = useNavigate()
+  const [userProfile, setUserProfile] = useState(null); 
 
-  // Cegah masuk tanpa login
+  // --- CEK SESI & AMBIL DATA USER DARI profiles ---
   useEffect(() => {
-    const logged = localStorage.getItem("logged_in")
-    if (logged !== "true") {
-      navigate("/login")
-    }
-  }, [])
+    async function getUserData() {
+        // 1. Ambil Sesi Auth
+        const { data: { user } } = await supabase.auth.getUser();
 
-  const handleLogout = () => {
-    localStorage.removeItem("logged_in")
-    navigate("/login")
+        if (!user) {
+            // Jika tidak ada sesi aktif, arahkan ke login
+            navigate("/login")
+            return;
+        }
+
+        // 2. Ambil Data Profil dari Tabel profiles
+        // Policy RLS memastikan hanya data user ini yang bisa diambil
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('name, nim, kelompok') 
+            .eq('id', user.id)
+            .single();
+        
+        if (error) {
+            console.error("Error fetching profile:", error);
+            // Fallback jika data profil tidak ditemukan atau gagal diambil
+            setUserProfile({
+                name: 'Data Profile Tidak Ditemukan',
+                nim: 'N/A',
+                kelompok: 'N/A',
+                displayEmail: user.email,
+                prodi: 'Teknik Komputer',
+                universitas: 'Universitas Diponegoro',
+                posisi: 'Student Developer',
+            });
+            return;
+        }
+
+        // 3. Gabungkan Data Dinamis (Profile) dan Data Hardcode (Lainnya)
+        setUserProfile({
+            // Data Dinamis dari Supabase Profile
+            name: profile.name || 'Nama Tidak Ditemukan', 
+            nim: profile.nim || 'NIM Tidak Ditemukan',
+            kelompok: profile.kelompok || '00',
+            // Data Dinamis dari Supabase Auth
+            displayEmail: user.email, 
+            // Data Hardcode untuk tampilan TA
+            prodi: 'Teknik Komputer',
+            universitas: 'Universitas Diponegoro',
+            posisi: 'Student Developer',
+        });
+    }
+    getUserData()
+  }, [navigate])
+
+  // --- LOGOUT MENGGUNAKAN SUPABASE ---
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut()
+    if (!error) {
+        navigate("/login")
+    } else {
+        console.error("Logout Error:", error)
+        alert("Logout failed.")
+    }
   }
 
+  // --- TAMPILAN LOADING ---
+  if (!userProfile) {
+    return (
+        <div style={{minHeight: "100vh", background: "#c44569", color: "white", padding: 50}}>
+            Loading Profile...
+        </div>
+    )
+  }
+
+  const user = userProfile;
+
+  // --- TAMPILAN PROFILE PAGE ---
   return (
     <div
       style={{
@@ -101,12 +165,12 @@ export default function ProfilePage() {
               boxShadow: "0 0 25px rgba(255,255,255,0.4)",
             }}
           >
-            S
+            {user.name ? user.name[0].toUpperCase() : 'U'}
           </div>
 
-          <h2 style={{ fontSize: 26, fontWeight: 700 }}>Salsabila Diva</h2>
-          <p style={{ opacity: 0.9, marginTop: 6 }}>21120123140044</p>
-          <p style={{ opacity: 0.9 }}>Kelompok 22</p>
+          <h2 style={{ fontSize: 26, fontWeight: 700 }}>{user.name}</h2>
+          <p style={{ opacity: 0.9, marginTop: 6 }}>{user.nim}</p>
+          <p style={{ opacity: 0.9 }}>Kelompok {user.kelompok}</p>
 
           <button
             onClick={handleLogout}
@@ -136,32 +200,32 @@ export default function ProfilePage() {
           <div style={infoGrid}>
             <div>
               <p style={label}>Nama Lengkap</p>
-              <p style={value}>Salsabila Diva</p>
+              <p style={value}>{user.name}</p>
             </div>
 
             <div>
               <p style={label}>NIM</p>
-              <p style={value}>21120123140044</p>
+              <p style={value}>{user.nim}</p>
             </div>
 
             <div>
               <p style={label}>Program Studi</p>
-              <p style={value}>Teknik Komputer</p>
+              <p style={value}>{user.prodi}</p>
             </div>
 
             <div>
               <p style={label}>Universitas</p>
-              <p style={value}>Universitas Diponegoro</p>
+              <p style={value}>{user.universitas}</p>
             </div>
 
             <div>
               <p style={label}>Posisi</p>
-              <p style={value}>Student Developer</p>
+              <p style={value}>{user.posisi}</p>
             </div>
 
             <div>
               <p style={label}>Email</p>
-              <p style={value}>demo@cabinair.com</p>
+              <p style={value}>{user.displayEmail}</p>
             </div>
           </div>
         </div>

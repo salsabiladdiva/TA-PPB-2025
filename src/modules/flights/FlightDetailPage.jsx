@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import { useState, useEffect } from "react"
 import Navbar from "../../components/Navbar"
 
-const API_BASE_URL = "http://localhost:4000" // Diperbaiki ke localhost
+const API_BASE_URL = "http://10.158.74.12:4000" // Diperbaiki ke localhost
 
 export default function FlightDetailPage() {
   const navigate = useNavigate()

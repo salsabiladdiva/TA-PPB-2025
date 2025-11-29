@@ -7,6 +7,7 @@ import ProfilePage from "./modules/profile/ProfilePage"
 import FlightDetailPage from "./modules/flights/FlightDetailPage"
 import PaymentSuccessPage from "./modules/payments/PaymentSuccessPage"
 import LoginPage from "./modules/auth/LoginPage"
+import RegisterPage from "./modules/auth/RegisterPage" // <-- TAMBAHAN: Import RegisterPage
 import BoardingPassPage from "./modules/checkin/BoardingPassPage"
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/payment-success" element={<PaymentSuccessPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} /> {/* <-- TAMBAHAN: Route Register */}
         <Route path="/boarding-pass" element={<BoardingPassPage />} />
       </Routes>
     </div>

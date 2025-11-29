@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import Navbar from "../../components/Navbar"; 
 
 // URL ke backend Express Anda (pastikan IP ini sudah benar)
-const API_BASE_URL = "http://localhost:4000"; 
+const API_BASE_URL = "http://10.158.74.12:4000"; 
 
 export default function CheckInPage() {
   const [ticketCode, setTicketCode] = useState("");
