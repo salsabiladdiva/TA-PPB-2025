@@ -1,87 +1,74 @@
-import { useNavigate } from "react-router-dom"
-import { useEffect, useState } from "react" 
-import Navbar from "../../components/Navbar"
-import { supabase } from "../../utils/supabaseClient"
+import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import Navbar from "../../components/Navbar";
+import { supabase } from "../../utils/supabaseClient";
 
 export default function ProfilePage() {
-  const navigate = useNavigate()
-  const [userProfile, setUserProfile] = useState(null); 
+  const navigate = useNavigate();
+  const [userProfile, setUserProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // --- CEK SESI & AMBIL DATA USER DARI profiles ---
   useEffect(() => {
     async function getUserData() {
+      try {
         // 1. Ambil Sesi Auth
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {
-            // Jika tidak ada sesi aktif, arahkan ke login
-            navigate("/login")
-            return;
+          navigate("/login");
+          return;
         }
 
-        // 2. Ambil Data Profil dari Tabel profiles
-        // Policy RLS memastikan hanya data user ini yang bisa diambil
+        // 2. Ambil Data Profil
+        // GANTI .single() DENGAN .maybeSingle()
         const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('name, nim, kelompok') 
-            .eq('id', user.id)
-            .single();
-        
+          .from('profiles')
+          .select('name, nim, kelompok, role') 
+          .eq('id', user.id)
+          .maybeSingle(); 
+
         if (error) {
-            console.error("Error fetching profile:", error);
-            // Fallback jika data profil tidak ditemukan atau gagal diambil
-            setUserProfile({
-                name: 'Data Profile Tidak Ditemukan',
-                nim: 'N/A',
-                kelompok: 'N/A',
-                displayEmail: user.email,
-                prodi: 'Teknik Komputer',
-                universitas: 'Universitas Diponegoro',
-                posisi: 'Student Developer',
-            });
-            return;
+          console.error("Error fetching profile:", error);
         }
 
-        // 3. Gabungkan Data Dinamis (Profile) dan Data Hardcode (Lainnya)
+        // 3. Set State dengan Data Default (Fallback) jika profil kosong
+        const profileData = profile || {}; 
+
         setUserProfile({
-            // Data Dinamis dari Supabase Profile
-            name: profile.name || 'Nama Tidak Ditemukan', 
-            nim: profile.nim || 'NIM Tidak Ditemukan',
-            kelompok: profile.kelompok || '00',
-            // Data Dinamis dari Supabase Auth
-            displayEmail: user.email, 
-            // Data Hardcode untuk tampilan TA
-            prodi: 'Teknik Komputer',
-            universitas: 'Universitas Diponegoro',
-            posisi: 'Student Developer',
+          name: profileData.name || 'User (Data Belum Lengkap)',
+          nim: profileData.nim || '-',
+          kelompok: profileData.kelompok || '-',
+          role: profileData.role || 'user', 
+          displayEmail: user.email,
+          prodi: 'Teknik Komputer',
+          universitas: 'Universitas Diponegoro',
+          posisi: profileData.role === 'admin' ? 'Administrator' : 'Student Developer',
         });
-    }
-    getUserData()
-  }, [navigate])
 
-  // --- LOGOUT MENGGUNAKAN SUPABASE ---
+      } catch (error) {
+        console.error("Unexpected error:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    getUserData();
+  }, [navigate]);
+
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (!error) {
-        navigate("/login")
-    } else {
-        console.error("Logout Error:", error)
-        alert("Logout failed.")
-    }
-  }
+    await supabase.auth.signOut();
+    navigate("/login");
+  };
 
-  // --- TAMPILAN LOADING ---
-  if (!userProfile) {
+  if (loading) {
     return (
-        <div style={{minHeight: "100vh", background: "#c44569", color: "white", padding: 50}}>
-            Loading Profile...
-        </div>
-    )
+      <div style={{ minHeight: "100vh", background: "#c44569", color: "white", padding: 50, textAlign: "center" }}>
+        Loading Profile...
+      </div>
+    );
   }
 
-  const user = userProfile;
+  if (!userProfile) return null;
 
-  // --- TAMPILAN PROFILE PAGE ---
   return (
     <div
       style={{
@@ -95,174 +82,134 @@ export default function ProfilePage() {
       <Navbar />
 
       {/* ---- HERO SECTION ---- */}
-      <div
-        style={{
-          textAlign: "center",
-          padding: "120px 20px 40px",
-        }}
-      >
-        <h1
-          style={{
-            fontSize: 48,
-            fontWeight: 900,
-            letterSpacing: 1,
-            marginBottom: 10,
-          }}
-        >
-          My Profile
-        </h1>
-
-        <p
-          style={{
-            fontSize: 20,
-            opacity: 0.9,
-            maxWidth: 700,
-            margin: "0 auto",
-          }}
-        >
-          Your personal flight dashboard
-        </p>
+      <div style={{ textAlign: "center", padding: "120px 20px 40px" }}>
+        <h1 style={{ fontSize: 48, fontWeight: 900, marginBottom: 10 }}>My Profile</h1>
+        <p style={{ fontSize: 20, opacity: 0.9 }}>Your personal flight dashboard</p>
       </div>
 
       {/* ---- PROFILE WRAPPER ---- */}
-      <div
-        style={{
-          maxWidth: 1100,
-          margin: "40px auto 60px",
-          display: "flex",
-          gap: 40,
-          padding: "0 20px",
-          flexWrap: "wrap",
-        }}
-      >
-        {/* ---- LEFT CARD ---- */}
-        <div
-          style={{
-            flex: 1,
-            minWidth: 320,
-            background: "rgba(255,255,255,0.12)",
-            padding: 32,
-            borderRadius: 20,
-            textAlign: "center",
-            backdropFilter: "blur(14px)",
-            border: "1px solid rgba(255,255,255,0.25)",
-            boxShadow: "0 8px 30px rgba(0,0,0,0.15)",
-          }}
-        >
-          <div
-            style={{
-              width: 160,
-              height: 160,
-              borderRadius: "50%",
-              background: "white",
-              color: "#c44569",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              margin: "0 auto 20px",
-              fontSize: 80,
-              fontWeight: 800,
-              boxShadow: "0 0 25px rgba(255,255,255,0.4)",
-            }}
-          >
-            {user.name ? user.name[0].toUpperCase() : 'U'}
+      <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", gap: 40, padding: "0 20px", flexWrap: "wrap" }}>
+        
+        {/* LEFT CARD */}
+        <div style={cardStyle}>
+          <div style={avatarStyle}>
+            {userProfile.name ? userProfile.name[0].toUpperCase() : 'U'}
           </div>
 
-          <h2 style={{ fontSize: 26, fontWeight: 700 }}>{user.name}</h2>
-          <p style={{ opacity: 0.9, marginTop: 6 }}>{user.nim}</p>
-          <p style={{ opacity: 0.9 }}>Kelompok {user.kelompok}</p>
+          <h2 style={{ fontSize: 26, fontWeight: 700 }}>{userProfile.name}</h2>
+          <p style={{ opacity: 0.9, marginTop: 6 }}>{userProfile.nim}</p>
+          
+          {/* Badge Role */}
+          <div style={{ 
+            display: "inline-block", 
+            padding: "4px 12px", 
+            borderRadius: "20px", 
+            background: userProfile.role === 'admin' ? "#ffd700" : "rgba(255,255,255,0.2)",
+            color: userProfile.role === 'admin' ? "#000" : "#fff",
+            fontWeight: "bold",
+            fontSize: "12px",
+            marginTop: "10px",
+            textTransform: "uppercase"
+          }}>
+            {userProfile.role}
+          </div>
 
-          <button
-            onClick={handleLogout}
-            style={logoutBtn}
-          >
-            Logout
-          </button>
+          <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: "10px" }}>
+            
+            {/* TOMBOL ADMIN (Hanya muncul jika role === 'admin') */}
+            {userProfile.role === 'admin' && (
+              <button
+                onClick={() => navigate("/admin/add-flight")}
+                style={adminBtnStyle}
+              >
+                🛠️ Admin Dashboard
+              </button>
+            )}
+
+            <button onClick={handleLogout} style={logoutBtnStyle}>
+              Logout
+            </button>
+          </div>
         </div>
 
-        {/* ---- RIGHT CARD ---- */}
-        <div
-          style={{
-            flex: 2,
-            minWidth: 340,
-            background: "rgba(255,255,255,0.12)",
-            padding: 32,
-            borderRadius: 20,
-            backdropFilter: "blur(14px)",
-            border: "1px solid rgba(255,255,255,0.25)",
-            boxShadow: "0 8px 30px rgba(0,0,0,0.15)",
-          }}
-        >
-          <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 24 }}>
-            Profile Information
-          </h2>
-
+        {/* RIGHT CARD */}
+        <div style={{ ...cardStyle, flex: 2 }}>
+          <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 24 }}>Profile Information</h2>
+          
           <div style={infoGrid}>
-            <div>
-              <p style={label}>Nama Lengkap</p>
-              <p style={value}>{user.name}</p>
-            </div>
-
-            <div>
-              <p style={label}>NIM</p>
-              <p style={value}>{user.nim}</p>
-            </div>
-
-            <div>
-              <p style={label}>Program Studi</p>
-              <p style={value}>{user.prodi}</p>
-            </div>
-
-            <div>
-              <p style={label}>Universitas</p>
-              <p style={value}>{user.universitas}</p>
-            </div>
-
-            <div>
-              <p style={label}>Posisi</p>
-              <p style={value}>{user.posisi}</p>
-            </div>
-
-            <div>
-              <p style={label}>Email</p>
-              <p style={value}>{user.displayEmail}</p>
-            </div>
+            <InfoItem label="Nama Lengkap" value={userProfile.name} />
+            <InfoItem label="NIM" value={userProfile.nim} />
+            <InfoItem label="Program Studi" value={userProfile.prodi} />
+            <InfoItem label="Universitas" value={userProfile.universitas} />
+            <InfoItem label="Posisi" value={userProfile.posisi} />
+            <InfoItem label="Email" value={userProfile.displayEmail} />
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-/* ---- STYLING ---- */
+// --- SUB-COMPONENTS & STYLES ---
 
-const logoutBtn = {
-  marginTop: 20,
-  padding: "12px 20px",
-  borderRadius: 10,
+const InfoItem = ({ label, value }) => (
+  <div>
+    <p style={{ opacity: 0.7, fontSize: 14, fontWeight: 500, marginBottom: 4 }}>{label}</p>
+    <p style={{ fontSize: 18, fontWeight: 700 }}>{value}</p>
+  </div>
+);
+
+const cardStyle = {
+  flex: 1,
+  minWidth: 320,
+  background: "rgba(255,255,255,0.12)",
+  padding: 32,
+  borderRadius: 20,
+  backdropFilter: "blur(14px)",
+  border: "1px solid rgba(255,255,255,0.25)",
+  textAlign: "center",
+};
+
+const avatarStyle = {
+  width: 120,
+  height: 120,
+  borderRadius: "50%",
   background: "white",
   color: "#c44569",
-  fontWeight: 700,
-  border: "none",
-  cursor: "pointer",
-  fontSize: 16,
-  boxShadow: "0 4px 18px rgba(0,0,0,0.2)",
-}
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  fontSize: 60,
+  fontWeight: 800,
+  margin: "0 auto 20px",
+};
 
 const infoGrid = {
   display: "grid",
   gridTemplateColumns: "1fr 1fr",
   gap: 20,
-}
+  textAlign: "left",
+};
 
-const label = {
-  opacity: 0.7,
-  fontSize: 14,
-  fontWeight: 500,
-  marginBottom: 4,
-}
-
-const value = {
-  fontSize: 18,
+const logoutBtnStyle = {
+  padding: "12px",
+  borderRadius: 10,
+  background: "rgba(255,255,255,0.2)",
+  color: "white",
   fontWeight: 700,
-}
+  border: "none",
+  cursor: "pointer",
+  transition: "0.2s"
+};
+
+const adminBtnStyle = {
+  padding: "12px",
+  borderRadius: 10,
+  background: "white",
+  color: "#c44569",
+  fontWeight: 800,
+  border: "none",
+  cursor: "pointer",
+  boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
+  transition: "0.2s"
+};

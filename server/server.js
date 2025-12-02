@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createClient } from "@supabase/supabase-js";
-import cryptoRandomString from "crypto-random-string"; // Import tambahan untuk buat kode tiket
+import cryptoRandomString from "crypto-random-string";
 
 // Fix __dirname untuk ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -29,8 +29,10 @@ app.use(cors()); // Izinkan CORS
 app.use(express.json()); // Parsing JSON body
 
 // ==========================================================
-// UTILITY: Fungsi untuk membuat kursi acak
+// UTILITY: Fungsi Bantuan
 // ==========================================================
+
+// 1. Fungsi untuk membuat kursi acak (Check-in)
 function generateRandomSeat() {
   const rows = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
   const columns = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -38,8 +40,6 @@ function generateRandomSeat() {
   const randomColumn = columns[Math.floor(Math.random() * columns.length)];
   return `${randomRow}${randomColumn}`;
 }
-// ==========================================================
-
 
 // ==========================================================
 // ROUTES
@@ -50,12 +50,13 @@ app.get("/", (req, res) => {
   res.send("CabinIn API is running");
 });
 
-// 2. GET /api/flights - Ambil semua data penerbangan (Digunakan di BookingPage.jsx)
+// 2. GET /api/flights - Ambil semua data penerbangan
 app.get("/api/flights", async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("flights")
-      .select("*");
+      .select("*")
+      .order('created_at', { ascending: false }); // Urutkan dari yang terbaru
 
     if (error) throw error;
     res.json(data);
@@ -65,7 +66,7 @@ app.get("/api/flights", async (req, res) => {
   }
 });
 
-// 3. GET /api/flights/:id - Ambil detail penerbangan (Digunakan di FlightDetailPage.jsx)
+// 3. GET /api/flights/:id - Ambil detail penerbangan
 app.get("/api/flights/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -90,20 +91,19 @@ app.get("/api/flights/:id", async (req, res) => {
   }
 });
 
-// 4. POST /api/bookings - Buat booking baru (Mengganti logic DUMMY di FlightDetailPage.jsx)
+// 4. POST /api/bookings - Buat booking baru
 app.post("/api/bookings", async (req, res) => {
   try {
-    // Ambil data dari body request frontend
     const { flight_id, passenger_name, user_id } = req.body;
     
     if (!flight_id || !passenger_name || !user_id) {
       return res.status(400).json({ error: "Missing required fields: flight_id, passenger_name, user_id" });
     }
 
-    // 1. Generate Ticket Code Unik (Contoh: CABININ-2025-1234)
+    // Generate Ticket Code Unik (Contoh: CABININ-2025-1234)
     const ticket_code = "CABININ-" + new Date().getFullYear() + "-" + cryptoRandomString({ length: 4, type: 'numeric' });
 
-    // 2. Simpan Booking ke Supabase
+    // Simpan Booking ke Supabase
     const { data, error } = await supabase
       .from("bookings")
       .insert({
@@ -118,7 +118,6 @@ app.post("/api/bookings", async (req, res) => {
 
     if (error) throw error;
 
-    // Kirim kembali data booking yang baru dibuat
     res.status(201).json(data);
   } catch (err) {
     console.error(err);
@@ -126,8 +125,7 @@ app.post("/api/bookings", async (req, res) => {
   }
 });
 
-
-// 5. GET /api/checkins/:ticket_code - Proses Check-In (MEMAKSA DOUBLE ENTRY DENGAN SEAT UNIK)
+// 5. GET /api/checkins/:ticket_code - Proses Check-In
 app.get("/api/checkins/:ticket_code", async (req, res) => {
   try {
     const { ticket_code } = req.params;
@@ -144,16 +142,15 @@ app.get("/api/checkins/:ticket_code", async (req, res) => {
 
     if (error) {
       if (error.code === 'PGRST116') {
-        // Ticket tidak ditemukan di database
         return res.status(404).json({ error: "Ticket code not found." });
       }
       throw error;
     }
     
-    // **LOGIKA MODIFIKASI: SELALU BUAT RECORD CHECK-IN BARU DENGAN KURSI UNIK**
-    const newSeat = generateRandomSeat(); // Tetapkan kursi unik baru
+    // Buat kursi unik baru
+    const newSeat = generateRandomSeat();
     
-    // Catat check-in baru ke tabel 'checkins' (ini akan menjadi double entry)
+    // Catat check-in baru ke tabel 'checkins'
     const { error: checkinError } = await supabase
         .from("checkins")
         .insert({
@@ -163,10 +160,8 @@ app.get("/api/checkins/:ticket_code", async (req, res) => {
         
     if (checkinError) throw checkinError;
 
-    const finalSeat = newSeat; // Kursi yang ditampilkan adalah kursi yang baru dibuat
     const gate = bookingData.flights.gate || "TBD"; 
 
-    // Kirim data yang dibutuhkan frontend untuk BoardingPassPage
     res.json({
       booking: {
         id: bookingData.id,
@@ -181,7 +176,7 @@ app.get("/api/checkins/:ticket_code", async (req, res) => {
         gate: gate,
         price: bookingData.flights.price
       },
-      seat: finalSeat,
+      seat: newSeat,
     });
   } catch (err) {
     console.error(err);
@@ -189,7 +184,52 @@ app.get("/api/checkins/:ticket_code", async (req, res) => {
   }
 });
 
+// 6. POST /api/flights - [ADMIN] Tambah Flight (FIX ERROR ID NULL)
+app.post("/api/flights", async (req, res) => {
+  try {
+    const { from_city, to_city, date, time, price, gate } = req.body;
+
+    // A. Validasi Input
+    if (!from_city || !to_city || !date || !time || !price) {
+      return res.status(400).json({ error: "Semua field wajib diisi!" });
+    }
+
+    // B. Generate ID Unik secara Manual
+    // Mengambil 3 huruf pertama dari nama kota (misal: "Jakarta" -> "JAK")
+    // Format ID: JAK-BAL-1234 (Asal-Tujuan-AngkaAcak)
+    const fromCode = from_city.replace(/[^a-zA-Z]/g, "").substring(0, 3).toUpperCase();
+    const toCode = to_city.replace(/[^a-zA-Z]/g, "").substring(0, 3).toUpperCase();
+    
+    const randomSuffix = cryptoRandomString({ length: 4, type: 'numeric' });
+    const manualId = `${fromCode}-${toCode}-${randomSuffix}`;
+
+    // C. Simpan ke Database
+    const { data, error } = await supabase
+      .from("flights")
+      .insert([{
+        id: manualId, // <--- KITA ISI ID SECARA MANUAL AGAR TIDAK NULL
+        from_city,
+        to_city,
+        date,
+        time,
+        price: parseInt(price),
+        gate: gate || "TBA"
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({ message: "Success", data });
+
+  } catch (err) {
+    console.error("Add Flight Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // SERVER LISTEN
 app.listen(process.env.PORT, () => {
   console.log("Backend running at http://localhost:" + process.env.PORT);
 });
+
